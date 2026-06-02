@@ -12,7 +12,9 @@
       "tsconfigPaths": true
     },
 
-    "plugins": [],
+    "scheme": "domiplant",
+
+    "plugins": ["expo-router"],
 
     "orientation": "portrait",
     "icon": "./assets/icon.png",
