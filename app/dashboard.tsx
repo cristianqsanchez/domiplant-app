@@ -1,4 +1,4 @@
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { Link } from 'expo-router';
 import {
   Package,
@@ -9,13 +9,37 @@ import {
   AlertCircle,
   Clock,
   RefreshCw,
+  Droplet,
 } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useDashboardData, type BatchItem } from '@/hooks/useDashboardData';
+
+const ICON_MAP: Record<string, React.ElementType> = {
+  Sprout,
+  Droplet,
+  Package,
+  Truck,
+  CheckCircle2,
+  TrendingUp,
+  AlertCircle,
+  Clock,
+  RefreshCw,
+};
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { isOperator, isDriver } = usePermissions();
+  const { operatorStats, activeBatches, driverStats, todayTrips, recentActivity, loading, error } =
+    useDashboardData();
+
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-green-50">
+        <ActivityIndicator size="large" color="#22c55e" />
+      </View>
+    );
+  }
 
   return (
     <ScrollView className="flex-1 bg-green-50">
@@ -28,57 +52,57 @@ export default function Dashboard() {
 
       <View className="px-4 -mt-4">
         <View className="flex-row flex-wrap gap-3 mb-6">
-          {isOperator() && (
+          {isOperator() && operatorStats && (
             <>
               <StatCard
                 icon={<Package size={20} color="white" />}
-                value="24"
+                value={String(operatorStats.activeBatches)}
                 label="Lotes Activos"
                 color="bg-blue-500"
               />
               <StatCard
                 icon={<Sprout size={20} color="white" />}
-                value="18,450"
+                value={operatorStats.readyPlants.toLocaleString()}
                 label="Plantas Listas"
                 color="bg-green-500"
               />
               <StatCard
                 icon={<TrendingUp size={20} color="white" />}
-                value="32"
+                value={String(operatorStats.todayTasks)}
                 label="Tareas Hoy"
                 color="bg-purple-500"
               />
               <StatCard
                 icon={<CheckCircle2 size={20} color="white" />}
-                value="12"
+                value={String(operatorStats.pending)}
                 label="Pendientes"
                 color="bg-orange-500"
               />
             </>
           )}
-          {isDriver() && (
+          {isDriver() && driverStats && (
             <>
               <StatCard
                 icon={<Truck size={20} color="white" />}
-                value="5"
+                value={String(driverStats.todayTrips)}
                 label="Viajes Hoy"
                 color="bg-purple-500"
               />
               <StatCard
                 icon={<CheckCircle2 size={20} color="white" />}
-                value="18"
+                value={String(driverStats.deliveries)}
                 label="Entregas"
                 color="bg-blue-500"
               />
               <StatCard
                 icon={<Package size={20} color="white" />}
-                value="12"
+                value={String(driverStats.completedStops)}
                 label="Completadas"
                 color="bg-green-500"
               />
               <StatCard
                 icon={<Clock size={20} color="white" />}
-                value="6"
+                value={String(driverStats.pendingStops)}
                 label="Pendientes"
                 color="bg-orange-500"
               />
@@ -143,7 +167,7 @@ export default function Dashboard() {
         </View>
       </View>
 
-      {isOperator() && (
+      {isOperator() && activeBatches && activeBatches.length > 0 && (
         <View className="px-4 mb-6">
           <View className="flex-row items-center justify-between mb-3">
             <Text className="text-sm text-gray-500 uppercase tracking-wide">
@@ -154,116 +178,46 @@ export default function Dashboard() {
             </Link>
           </View>
           <View className="gap-3">
-            <BatchCard
-              id="1"
-              species="Ficus lyrata"
-              quantity={2500}
-              stage="Enraizado"
-              progress={65}
-              location="Cama A-12"
-              daysRemaining={15}
-              status="on-track"
-            />
-            <BatchCard
-              id="2"
-              species="Monstera deliciosa"
-              quantity={1800}
-              stage="Aclimatación"
-              progress={90}
-              location="Cama B-05"
-              daysRemaining={5}
-              status="on-track"
-            />
-            <BatchCard
-              id="3"
-              species="Pothos aureus"
-              quantity={3200}
-              stage="Trasplante"
-              progress={45}
-              location="Cama C-08"
-              daysRemaining={22}
-              status="warning"
-            />
+            {activeBatches.map((batch) => (
+              <BatchCard key={batch.id} batch={batch} />
+            ))}
           </View>
         </View>
       )}
 
-      {isDriver() && (
+      {isDriver() && todayTrips && todayTrips.length > 0 && (
         <View className="px-4 mb-6">
           <Text className="text-sm text-gray-500 uppercase tracking-wide mb-3">
             Entregas de Hoy
           </Text>
           <View className="gap-3">
-            <TripCard
-              id="1"
-              route="Santo Domingo - Ruta A"
-              stops={8}
-              completed={3}
-              status="in-progress"
-              driver="Carlos Fernández"
-            />
-            <TripCard
-              id="2"
-              route="Santiago - Ruta B"
-              stops={5}
-              completed={0}
-              status="pending"
-              driver="María González"
-            />
+            {todayTrips.map((trip) => (
+              <TripCard key={trip.id} trip={trip} />
+            ))}
           </View>
         </View>
       )}
 
-      <View className="px-4 mb-6">
-        <Text className="text-sm text-gray-500 uppercase tracking-wide mb-3">
-          Actividad Reciente
-        </Text>
-        <View className="bg-white rounded-xl shadow-sm">
-          {isOperator() && (
-            <>
-              <ActivityItem
-                icon={<Sprout size={18} color="#16a34a" />}
-                title="Lote #B-2024-045 movido a Listo"
-                time="hace 15 min"
-              />
-              <ActivityItem
-                icon={<TrendingUp size={18} color="#2563eb" />}
-                title="Tratamiento aplicado: 500 plantas"
-                time="hace 1 hora"
-              />
-              <ActivityItem
-                icon={<AlertCircle size={18} color="#ea580c" />}
-                title="Pérdida reportada: Lote #B-2024-032"
-                time="hace 2 horas"
-              />
-            </>
-          )}
-          {isDriver() && (
-            <>
-              <ActivityItem
-                icon={<Truck size={18} color="#9333ea" />}
-                title="Viaje iniciado: Ruta A"
-                time="hace 15 min"
-              />
-              <ActivityItem
-                icon={<CheckCircle2 size={18} color="#16a34a" />}
-                title="Entrega completada: Parada #3"
-                time="hace 1 hora"
-              />
-              <ActivityItem
-                icon={<Package size={18} color="#2563eb" />}
-                title="Cargado: 250 plantas"
-                time="hace 2 horas"
-              />
-              <ActivityItem
-                icon={<Truck size={18} color="#16a34a" />}
-                title="Viaje completado: Ruta B"
-                time="hace 3 horas"
-              />
-            </>
-          )}
+      {recentActivity && recentActivity.length > 0 && (
+        <View className="px-4 mb-6">
+          <Text className="text-sm text-gray-500 uppercase tracking-wide mb-3">
+            Actividad Reciente
+          </Text>
+          <View className="bg-white rounded-xl shadow-sm">
+            {recentActivity.map((item, i) => (
+              <ActivityItem key={i} item={item} isLast={i === recentActivity.length - 1} />
+            ))}
+          </View>
         </View>
-      </View>
+      )}
+
+      {error && (
+        <View className="px-4 mb-6">
+          <View className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            <Text className="text-red-700 text-sm">{error}</Text>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -318,25 +272,7 @@ function QuickAction({
   );
 }
 
-function BatchCard({
-  id,
-  species,
-  quantity,
-  stage,
-  progress,
-  location,
-  daysRemaining,
-  status,
-}: {
-  id: string;
-  species: string;
-  quantity: number;
-  stage: string;
-  progress: number;
-  location: string;
-  daysRemaining: number;
-  status: 'on-track' | 'warning' | 'delayed';
-}) {
+function BatchCard({ batch }: { batch: BatchItem }) {
   const statusColors: Record<string, string> = {
     'on-track': 'text-green-600 bg-green-50',
     warning: 'text-orange-600 bg-orange-50',
@@ -345,51 +281,55 @@ function BatchCard({
 
   return (
     <Link
-      href={`/batches/${id}`}
+      href={`/batches/${batch.id}`}
       className="bg-white rounded-xl shadow-sm p-4 active:bg-gray-50"
     >
       <View className="flex-row items-start justify-between mb-3">
         <View className="flex-1">
-          <Text className="font-semibold text-gray-900 mb-1">{species}</Text>
+          <Text className="font-semibold text-gray-900 mb-1">{batch.species}</Text>
           <Text className="text-sm text-gray-500">
-            {quantity.toLocaleString()} plants - {location}
+            {batch.current_quantity.toLocaleString()} plantas - {batch.batch_number}
           </Text>
         </View>
-        <View className={`px-2 py-1 rounded-full ${statusColors[status]}`}>
-          <Text className="text-xs font-medium">{stage}</Text>
+        <View className={`px-2 py-1 rounded-full ${statusColors[batch.status]}`}>
+          <Text className="text-xs font-medium">{batch.stage_label}</Text>
         </View>
       </View>
       <View className="mb-2">
         <View className="flex-row items-center justify-between mb-1">
           <Text className="text-xs text-gray-500">Progreso</Text>
-          <Text className="text-xs text-gray-500">{progress}%</Text>
+          <Text className="text-xs text-gray-500">{batch.progress}%</Text>
         </View>
         <View className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-          <View className="bg-green-600 h-2 rounded-full" style={{ width: `${progress}%` }} />
+          <View
+            className="bg-green-600 h-2 rounded-full"
+            style={{ width: `${batch.progress}%` }}
+          />
         </View>
       </View>
       <View className="flex-row items-center gap-1">
         <Clock size={14} color="#6b7280" />
-        <Text className="text-xs text-gray-500">{daysRemaining} días restantes</Text>
+        <Text className="text-xs text-gray-500">
+          {batch.days_remaining > 0
+            ? `${batch.days_remaining} días restantes`
+            : 'Finalizado'}
+        </Text>
       </View>
     </Link>
   );
 }
 
 function TripCard({
-  id,
-  route,
-  stops,
-  completed,
-  status,
-  driver,
+  trip,
 }: {
-  id: string;
-  route: string;
-  stops: number;
-  completed: number;
-  status: 'pending' | 'in-progress' | 'completed';
-  driver: string;
+  trip: {
+    id: string;
+    route: string;
+    stops: number;
+    completed: number;
+    status: string;
+    driver: string;
+  };
 }) {
   const statusConfig: Record<string, { text: string; color: string }> = {
     pending: { text: 'Pendiente', color: 'bg-gray-100' },
@@ -397,25 +337,25 @@ function TripCard({
     completed: { text: 'Completado', color: 'bg-green-100' },
   };
 
+  const config = statusConfig[trip.status] ?? statusConfig.pending;
+
   return (
     <Link
-      href={`/trips/${id}`}
+      href={`/trips/${trip.id}`}
       className="bg-white rounded-xl shadow-sm p-4 active:bg-gray-50"
     >
       <View className="flex-row items-start justify-between mb-3">
         <View className="flex-1">
-          <Text className="font-semibold text-gray-900 mb-1">{route}</Text>
-          <Text className="text-sm text-gray-500">{driver}</Text>
+          <Text className="font-semibold text-gray-900 mb-1">{trip.route}</Text>
+          <Text className="text-sm text-gray-500">{trip.driver}</Text>
         </View>
-        <View className={`px-2 py-1 rounded-full ${statusConfig[status].color}`}>
-          <Text className="text-xs font-medium text-gray-700">
-            {statusConfig[status].text}
-          </Text>
+        <View className={`px-2 py-1 rounded-full ${config.color}`}>
+          <Text className="text-xs font-medium text-gray-700">{config.text}</Text>
         </View>
       </View>
       <View className="flex-row items-center justify-between">
         <Text className="text-sm text-gray-600">
-          {completed} de {stops} paradas completadas
+          {trip.completed} de {trip.stops} paradas completadas
         </Text>
         <Text className="text-green-600 text-lg">{'>'}</Text>
       </View>
@@ -424,20 +364,32 @@ function TripCard({
 }
 
 function ActivityItem({
-  icon,
-  title,
-  time,
+  item,
+  isLast,
 }: {
-  icon: React.ReactNode;
-  title: string;
-  time: string;
+  item: { icon: string; title: string; time: string; color: string };
+  isLast: boolean;
 }) {
+  const IconComponent = ICON_MAP[item.icon] ?? Sprout;
+  const colorMap: Record<string, string> = {
+    'text-green-600': '#16a34a',
+    'text-blue-600': '#2563eb',
+    'text-orange-600': '#ea580c',
+    'text-purple-600': '#9333ea',
+  };
+
+  const iconColor = colorMap[item.color] ?? '#16a34a';
+
   return (
-    <View className="flex-row items-start gap-3 p-4 border-b border-gray-100">
-      <View className="mt-0.5">{icon}</View>
+    <View
+      className={`flex-row items-start gap-3 p-4 ${!isLast ? 'border-b border-gray-100' : ''}`}
+    >
+      <View className="mt-0.5">
+        <IconComponent size={18} color={iconColor} />
+      </View>
       <View className="flex-1">
-        <Text className="text-sm text-gray-900">{title}</Text>
-        <Text className="text-xs text-gray-500 mt-1">{time}</Text>
+        <Text className="text-sm text-gray-900">{item.title}</Text>
+        <Text className="text-xs text-gray-500 mt-1">{item.time}</Text>
       </View>
     </View>
   );
