@@ -81,8 +81,9 @@ export function useDashboardData() {
     error: null,
   });
 
-  const isOperator = user?.role === 'production' || user?.role === 'admin';
-  const isDriver = user?.role === 'driver';
+  const role = user?.role;
+  const isOperator = role === 'production' || role === 'admin';
+  const isDriver = role === 'driver';
 
   useEffect(() => {
     const uid: string | undefined = user?.id;
@@ -98,7 +99,7 @@ export function useDashboardData() {
         const activeBatches = isOperator ? await fetchActiveBatches() : null;
         const driverStats = isDriver ? await fetchDriverStats(uid!) : null;
         const todayTrips = isDriver ? await fetchTodayTrips(uid!) : null;
-        const recentActivity = await fetchRecentActivity(isOperator, uid!);
+        const recentActivity = await fetchRecentActivity(role ?? null, uid!);
 
         if (cancelled) return;
 
@@ -123,7 +124,7 @@ export function useDashboardData() {
 
     fetchData();
     return () => { cancelled = true; };
-  }, [user?.id, isOperator, isDriver]);
+  }, [user?.id, role, isOperator, isDriver]);
 
   return state;
 }
@@ -240,27 +241,32 @@ async function fetchTodayTrips(driverId: string) {
   });
 }
 
-async function fetchRecentActivity(isOperator: boolean, userId: string) {
+async function fetchRecentActivity(
+  role: string | null,
+  userId: string
+) {
   const items: { icon: string; title: string; time: string; color: string }[] = [];
 
-  const { data: recentBatches } = await supabase
-    .from('production_batches')
-    .select('batch_number, stage, created_at, plants(name)')
-    .order('created_at', { ascending: false })
-    .limit(5);
-
-  for (const b of recentBatches ?? []) {
-    if (!b.created_at) continue;
-    const plantName = (b.plants as { name: string } | null)?.name ?? '';
-    items.push({
-      icon: 'Sprout',
-      title: `Lote ${b.batch_number}${plantName ? ` - ${plantName}` : ''} creado`,
-      time: formatTimeAgo(new Date(b.created_at)),
-      color: 'text-green-600',
-    });
-  }
+  const isOperator = role === 'production' || role === 'admin';
 
   if (isOperator) {
+    const { data: recentBatches } = await supabase
+      .from('production_batches')
+      .select('batch_number, stage, created_at, plants(name)')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    for (const b of recentBatches ?? []) {
+      if (!b.created_at) continue;
+      const plantName = (b.plants as { name: string } | null)?.name ?? '';
+      items.push({
+        icon: 'Sprout',
+        title: `Lote ${b.batch_number}${plantName ? ` - ${plantName}` : ''} creado`,
+        time: formatTimeAgo(new Date(b.created_at)),
+        color: 'text-green-600',
+      });
+    }
+
     const { data: recentApps } = await supabase
       .from('batch_applications')
       .select('date, type, product, created_at, batch_id')
@@ -274,6 +280,33 @@ async function fetchRecentActivity(isOperator: boolean, userId: string) {
         title: `Aplicación: ${a.product ?? a.type} en lote`,
         time: formatTimeAgo(new Date(a.created_at)),
         color: 'text-blue-600',
+      });
+    }
+  }
+
+  if (role === 'driver') {
+    const { data: recentTrips } = await supabase
+      .from('trips')
+      .select('trip_number, status, date, routes(name)')
+      .eq('driver_id', userId)
+      .order('date', { ascending: false })
+      .limit(5);
+
+    const statusMap: Record<string, string> = {
+      pending: 'Pendiente',
+      'in-progress': 'En curso',
+      completed: 'Completado',
+    };
+
+    for (const t of recentTrips ?? []) {
+      if (!t.date) continue;
+      const routeName = (t.routes as { name: string } | null)?.name ?? 'Ruta sin asignar';
+      const statusText = statusMap[t.status ?? ''] ?? t.status ?? 'Desconocido';
+      items.push({
+        icon: 'Truck',
+        title: `Viaje ${t.trip_number} - ${routeName} (${statusText})`,
+        time: formatTimeAgo(new Date(t.date)),
+        color: 'text-purple-600',
       });
     }
   }
