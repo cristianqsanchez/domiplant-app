@@ -16,7 +16,7 @@ export default function Login() {
 
   useEffect(() => {
     if (user) {
-      router.replace('/dashboard');
+      router.replace('/(tabs)');
     }
   }, [user, router]);
 
@@ -28,7 +28,7 @@ export default function Login() {
     if (signInError) {
       setError('Credenciales incorrectas');
     } else {
-      router.replace('/dashboard');
+      router.replace('/(tabs)');
     }
     setLoading(false);
   }

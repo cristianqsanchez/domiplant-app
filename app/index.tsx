@@ -13,7 +13,7 @@ export default function Index() {
     );
   }
 
-  if (user) return <Redirect href="/dashboard" />;
+  if (user) return <Redirect href="/(tabs)" />;
 
   return <Redirect href="/login" />;
 }
